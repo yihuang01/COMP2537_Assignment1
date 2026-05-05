@@ -17,18 +17,15 @@
     "url": "https://github.com/yihuang01/COMP2537_Assignment1/issues"
   },
   "homepage": "https://github.com/yihuang01/COMP2537_Assignment1#readme",
-  "engines": {
-    "node": "18.x"
-  },
   "dependencies": {
-    "bcrypt": "^5.1.1",
-    "connect-mongo": "^5.0.0",
+    "bcrypt": "^6.0.0",
+    "connect-mongo": "^6.0.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "joi": "^18.1.2",
     "mongo-sanitizer": "^1.0.4",
-    "mongodb": "^6.3.0",
+    "mongodb": "^7.2.0",
     "nodemon": "^3.1.14"
   }
 }
