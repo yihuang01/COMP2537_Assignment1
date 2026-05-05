@@ -65,29 +65,36 @@ app.use(
 app.get("/", (req, res) => {
   if (!req.session.authenticated) {
     res.send(`
-      <button onclick="location.href='/signup'">Sign up</button>
-      <button onclick="location.href='/login'">Log in</button>
+      <div style="display: flex; flex-direction: column; gap: 10px; width: fit-content;">
+        <button onclick="location.href='/signup'">Sign up</button>
+        <button onclick="location.href='/login'">Log in</button>
+      </div>
     `);
   } else {
     res.send(`
-      Hello, ${req.session.name}!
-      <br>
-      <button onclick="location.href='/members'">Go to Members Area</button>
-      <button onclick="location.href='/logout'">Logout</button>
+      <div>
+        Hello, ${req.session.name}!
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px; width: fit-content;">
+        <button onclick="location.href='/members'">Go to Members Area</button>
+        <button onclick="location.href='/logout'">Logout</button>
+      </div>
     `);
   }
 });
 
 app.get("/signup", (req, res) => {
   res.send(`
-        <form action="/signup" method="post">
-        <p>Create user</p>
-            <input type="text" name="name" placeholder="name" required />
-            <input type="text" name="email" placeholder="email" required />
-            <input type="password" name="password" placeholder="password" required />
-            <button type="submit">Submit</button>
-        </form>
-`);
+    <form action="/signup" method="post">
+      <p>Create user</p>
+      <div style="display: flex; flex-direction: column; gap: 10px; width: 300px;">
+        <input type="text" name="name" placeholder="name" required />
+        <input type="text" name="email" placeholder="email" required />
+        <input type="password" name="password" placeholder="password" required />
+        <button type="submit">Submit</button>
+      </div>
+    </form>
+  `);
 });
 
 app.post("/signup", async (req, res) => {
@@ -138,13 +145,15 @@ app.post("/signup", async (req, res) => {
 
 app.get("/login", (req, res) => {
   res.send(`
-        <form action="/login" method="post">
-        <p>Login</p>
-            <input type="text" name="email" placeholder="email" required />
-            <input type="password" name="password" placeholder="password" required />
-            <button type="submit">Submit</button>
-        </form>
-    `);
+    <form action="/login" method="post">
+      <p>Login</p>
+      <div style="display: flex; flex-direction: column; gap: 10px; width: 300px;">
+        <input type="text" name="email" placeholder="email" required />
+        <input type="password" name="password" placeholder="password" required />
+        <button type="submit">Submit</button>
+      </div>
+    </form>
+  `);
 });
 
 app.post("/login", async (req, res) => {
