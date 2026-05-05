@@ -46,11 +46,10 @@ app.use(express.static(__dirname + "/public"));
 app.use(mongoSanitizer({ replaceWith: "_" }));
 
 var mongoStore = MongoStore.create({
-  mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/${mongodb_session_database}?retryWrites=true&w=majority`,
+  mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/${mongodb_session_database}`,
   crypto: {
     secret: mongodb_session_secret,
   },
-  ttl: 60 * 60, // 1 hour
 });
 
 app.use(
@@ -65,20 +64,15 @@ app.use(
 app.get("/", (req, res) => {
   if (!req.session.authenticated) {
     res.send(`
-      <div style="display: flex; flex-direction: column; gap: 10px; width: fit-content;">
-        <button onclick="location.href='/signup'">Sign up</button>
-        <button onclick="location.href='/login'">Log in</button>
-      </div>
+      <button onclick="location.href='/signup'">Sign up</button>
+      <button onclick="location.href='/login'">Log in</button>
     `);
   } else {
     res.send(`
-      <div>
-        Hello, ${req.session.name}!
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px; width: fit-content;">
-        <button onclick="location.href='/members'">Go to Members Area</button>
-        <button onclick="location.href='/logout'">Logout</button>
-      </div>
+      Hello, ${req.session.name}!
+      <br>
+      <button onclick="location.href='/members'">Go to Members Area</button>
+      <button onclick="location.href='/logout'">Logout</button>
     `);
   }
 });
