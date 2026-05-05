@@ -12,7 +12,7 @@ const app = express();
 
 const saltRounds = 10;
 const PORT = process.env.PORT || 3000;
-const expireTime = 1 * 60 * 60; // 1 hour
+const expireTime = 1 * 60 * 60 * 1000; // 1 hour in MILLISECONDS
 
 // Joi schema for validating user input
 const schema = Joi.object({
@@ -46,10 +46,11 @@ app.use(express.static(__dirname + "/public"));
 app.use(mongoSanitizer({ replaceWith: "_" }));
 
 var mongoStore = MongoStore.create({
-  mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/${mongodb_session_database}`,
+  mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/${mongodb_session_database}?retryWrites=true&w=majority`,
   crypto: {
     secret: mongodb_session_secret,
   },
+  ttl: 60 * 60, // 1 hour in seconds (for MongoDB)
 });
 
 app.use(
@@ -58,21 +59,32 @@ app.use(
     store: mongoStore,
     saveUninitialized: false,
     resave: false,
+    cookie: {
+      maxAge: expireTime, // 1 hour in milliseconds
+      httpOnly: true,
+      secure: false, // false for localhost, true for HTTPS in production
+      sameSite: "lax",
+    },
   }),
 );
 
 app.get("/", (req, res) => {
   if (!req.session.authenticated) {
     res.send(`
-      <button onclick="location.href='/signup'">Sign up</button>
-      <button onclick="location.href='/login'">Log in</button>
+      <div style="display: flex; flex-direction: column; gap: 10px; width: fit-content;">
+        <button onclick="location.href='/signup'">Sign up</button>
+        <button onclick="location.href='/login'">Log in</button>
+      </div>
     `);
   } else {
     res.send(`
-      Hello, ${req.session.name}!
-      <br>
-      <button onclick="location.href='/members'">Go to Members Area</button>
-      <button onclick="location.href='/logout'">Logout</button>
+      <div>
+        Hello, ${req.session.name}!
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px; width: fit-content;">
+        <button onclick="location.href='/members'">Go to Members Area</button>
+        <button onclick="location.href='/logout'">Logout</button>
+      </div>
     `);
   }
 });
@@ -132,7 +144,7 @@ app.post("/signup", async (req, res) => {
 
   req.session.authenticated = true;
   req.session.name = name;
-  req.session.cookie.maxAge = expireTime;
+  req.session.cookie.maxAge = expireTime; // Now in milliseconds
 
   res.redirect("/members");
 });
@@ -177,7 +189,7 @@ app.post("/login", async (req, res) => {
   if (passwordMatch) {
     req.session.authenticated = true;
     req.session.name = user.name;
-    req.session.cookie.maxAge = expireTime;
+    req.session.cookie.maxAge = expireTime; // Now in milliseconds
     res.redirect("/members");
   } else {
     console.log("Password does not match");
