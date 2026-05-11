@@ -232,7 +232,6 @@ app.listen(PORT, () => {
 
 const startServer = async () => {
   try {
-    // Connect to MongoDB first
     await database.connect();
     console.log("Successfully connected to MongoDB");
 
