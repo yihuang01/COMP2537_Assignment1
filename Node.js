@@ -229,3 +229,20 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+const startServer = async () => {
+  try {
+    // Connect to MongoDB first
+    await database.connect();
+    console.log("Successfully connected to MongoDB");
+
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("Failed to connect to MongoDB", err);
+    process.exit(1);
+  }
+};
+
+startServer();
