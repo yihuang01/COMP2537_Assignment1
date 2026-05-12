@@ -1,5 +1,7 @@
 require("dotenv").config();
 
+const url = require("url");
+
 const express = require("express");
 const session = require("express-session");
 const { MongoStore } = require("connect-mongo");
@@ -13,6 +15,23 @@ const app = express();
 const saltRounds = 10;
 const PORT = process.env.PORT || 3000;
 const expireTime = 1 * 60 * 60 * 1000; // 1 hour in MILLISECONDS
+
+app.set("view engine", "ejs");
+
+const navLinks = [
+  { name: "Home", url: "/" },
+  { name: "Signup", url: "/signup" },
+  { name: "Login", url: "/login" },
+  { name: "Members", url: "/members" },
+  { name: "Admin", url: "/admin" },
+  { name: "404", url: "/404" },
+];
+
+app.use((req, res, next) => {
+  app.locals.navLinks = navLinks;
+  app.locals.currentURL = url.parse(req.url).pathname;
+  next();
+});
 
 // Joi schema for validating user input
 const schema = Joi.object({
@@ -69,38 +88,16 @@ app.use(
 );
 
 app.get("/", (req, res) => {
-  if (!req.session.authenticated) {
-    res.send(`
-      <div style="display: flex; flex-direction: column; gap: 10px; width: fit-content;">
-        <button onclick="location.href='/signup'">Sign up</button>
-        <button onclick="location.href='/login'">Log in</button>
-      </div>
-    `);
-  } else {
-    res.send(`
-      <div>
-        Hello, ${req.session.name}!
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px; width: fit-content;">
-        <button onclick="location.href='/members'">Go to Members Area</button>
-        <button onclick="location.href='/logout'">Logout</button>
-      </div>
-    `);
-  }
+  console.log(req.url);
+  console.log(url.parse(req.url).pathname);
+  res.render("index", {
+    authenticated: req.session.authenticated,
+    name: req.session.name,
+  });
 });
 
 app.get("/signup", (req, res) => {
-  res.send(`
-    <form action="/signup" method="post">
-      <p>Create user</p>
-      <div style="display: flex; flex-direction: column; gap: 10px; width: 300px;">
-        <input type="text" name="name" placeholder="name" required />
-        <input type="text" name="email" placeholder="email" required />
-        <input type="password" name="password" placeholder="password" required />
-        <button type="submit">Submit</button>
-      </div>
-    </form>
-  `);
+  res.render("signup");
 });
 
 app.post("/signup", async (req, res) => {
@@ -138,28 +135,21 @@ app.post("/signup", async (req, res) => {
     name: name,
     email: email,
     password: hashedPassword,
+    user_type: "user",
   };
 
   await userCollection.insertOne(newUser);
 
   req.session.authenticated = true;
   req.session.name = name;
+  req.session.user_type = "user";
   req.session.cookie.maxAge = expireTime; // Now in milliseconds
 
   res.redirect("/members");
 });
 
 app.get("/login", (req, res) => {
-  res.send(`
-    <form action="/login" method="post">
-      <p>Login</p>
-      <div style="display: flex; flex-direction: column; gap: 10px; width: 300px;">
-        <input type="text" name="email" placeholder="email" required />
-        <input type="password" name="password" placeholder="password" required />
-        <button type="submit">Submit</button>
-      </div>
-    </form>
-  `);
+  res.render("login");
 });
 
 app.post("/login", async (req, res) => {
@@ -177,22 +167,13 @@ app.post("/login", async (req, res) => {
 
   const user = await userCollection.findOne({ email: email });
 
-  if (user == null) {
-    res.send(
-      `<h1>Error </h1> <p> Invalid email/password combination </p> <a href="/login">Try again</a>`,
-    );
-    return;
-  }
-
-  const passwordMatch = await bcrypt.compare(password, user.password);
-
-  if (passwordMatch) {
+  if (user && (await bcrypt.compare(password, user.password))) {
     req.session.authenticated = true;
     req.session.name = user.name;
-    req.session.cookie.maxAge = expireTime; // Now in milliseconds
+    req.session.user_type = user.user_type;
+    req.session.cookie.maxAge = expireTime;
     res.redirect("/members");
   } else {
-    console.log("Password does not match");
     res.send(
       `<h1>Error </h1> <p> Invalid email/password combination </p> <a href="/login">Try again</a>`,
     );
@@ -209,12 +190,11 @@ app.get("/members", (req, res) => {
   const imageNumber = Math.floor(Math.random() * 3) + 1;
   const imageName = "img" + imageNumber + ".jpg";
 
-  res.send(`
-        <h1>Hello, ${req.session.name}.</h1>
-        <img src='/${imageName}' style='width:300px;'>
-        <br>
-        <a href="/logout"><button>Sign out</button></a>
-    `);
+  res.render("members", {
+    imageName: imageName,
+    navLinks: navLinks,
+    currentURL: url.parse(req.url).pathname,
+  });
 });
 
 app.get("/logout", (req, res) => {
@@ -222,12 +202,54 @@ app.get("/logout", (req, res) => {
   res.redirect("/");
 });
 
-app.use((req, res) => {
-  res.status(404).send("Page not found - 404");
+app.get("/admin", async (req, res) => {
+  if (!req.session.authenticated) {
+    res.redirect("/login");
+    return;
+  }
+
+  if (req.session.user_type !== "admin") {
+    res.status(403).render("403");
+    return;
+  }
+
+  const users = await userCollection.find().toArray();
+
+  res.render("admin", { users: users, navLinks: navLinks });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.post("/admin/promote/:userId", async (req, res) => {
+  if (!req.session.authenticated || req.session.user_type !== "admin") {
+    res.status(403).send("Not authorized");
+    return;
+  }
+
+  const { ObjectId } = require("mongodb");
+  await userCollection.updateOne(
+    { _id: new ObjectId(req.params.userId) },
+    { $set: { user_type: "admin" } },
+  );
+
+  res.redirect("/admin");
+});
+
+app.post("/admin/demote/:userId", async (req, res) => {
+  if (!req.session.authenticated || req.session.user_type !== "admin") {
+    res.status(403).send("Not authorized");
+    return;
+  }
+
+  const { ObjectId } = require("mongodb");
+  await userCollection.updateOne(
+    { _id: new ObjectId(req.params.userId) },
+    { $set: { user_type: "user" } },
+  );
+
+  res.redirect("/admin");
+});
+
+app.use((req, res) => {
+  res.status(404).render("404");
 });
 
 const startServer = async () => {
